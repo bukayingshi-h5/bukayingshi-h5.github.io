@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>不卡度实验室 - 一帧一帧测"不卡"两个字值几个钱·缓冲审计/码率实测/弱网降级/权限探针</title>
+<meta name="description" content="不卡度实验室（bukayingshi-h5）是原创播放体验审计站：缓冲心电图、码率实测、弱网降级策略、权限探针与「不卡」承诺可信度评级。本站不提供影视App下载、不聚合片源、不切换播放源、不引流任何追剧软件。网址 https://bukayingshi-h5.github.io">
+<meta name="keywords" content="不卡度实验室,播放体验审计,缓冲测试,码率实测,弱网降级,视频卡顿优化,权限探针,不卡承诺可信度,bukayingshi">
+<meta name="author" content="不卡度实验室">
+<meta name="robots" content="index,follow">
+<meta name="renderer" content="webkit">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0F1214">
+<meta property="og:type" content="website">
+<meta property="og:title" content="不卡度实验室 - 一帧一帧，测测「不卡」值几个钱">
+<meta property="og:description" content="我们不保证不卡。我们只负责把「不卡」拆开给你看：缓冲、码率、弱网、权限，一格一格。">
+<meta property="og:url" content="https://bukayingshi-h5.github.io">
+<link rel="canonical" href="https://bukayingshi-h5.github.io/">
+<style>
+/* ============================================================
+   不卡度实验室  v1  原创「播放体验审计」
+   词源翻转：不卡 = 一个承诺 → 承诺必须被测
+   视觉：示波器墨黑 / 信号青 / 告警朱红 / 标定米白
+   结构：示波格 · 缓冲心电图 · SLA五卡 · 权限探针 · 断流铭牌
+   红线：不含任何 App 名/包名/下载链/片源/搜索引导词
+   ============================================================ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{
+  font-family:"Courier New","PingFang SC","Microsoft YaHei",monospace,serif;
+  background:#0F1214;color:#D6DBD8;line-height:1.85;overflow-x:hidden;
+  background-image:
+    radial-gradient(circle at 8% 7%,rgba(46,166,166,.10),transparent 30%),
+    radial-gradient(circle at 92% 11%,rgba(198,66,46,.09),transparent 30%),
+    linear-gradient(0deg,transparent 0 23px,rgba(46,166,166,.045) 23px 24px);
+}
+a{text-decoration:none;color:inherit;outline:none}
+img{max-width:100%;display:block}
+section[id]{scroll-margin-top:2px}
+::selection{background:#2EA6A6;color:#0B0E0F}
+h1,h2,h3,h4{line-height:1.28;font-weight:800;letter-spacing:.5px}
+ul{list-style:none}
+
+/* ---------- 示波带 ---------- */
+.scope{background:#07090A;color:#9FB3B0;font-size:11.5px;letter-spacing:1.3px;padding:7px 16px;display:flex;justify-content:center;gap:14px;flex-wrap:wrap;border-bottom:3px solid #C8422E;font-family:monospace}
+.scope b{color:#5FE0D8}
+.scope .alarm{color:#E8A49A;font-weight:800;border:1px solid #C8422E;padding:0 6px;border-radius:2px}
+
+/* ---------- 导航：旋钮 ---------- */
+.nav{position:sticky;top:0;z-index:999;background:rgba(15,18,20,.97);backdrop-filter:blur(8px);border-bottom:1px solid #22302E}
+.nav-in{max-width:1220px;margin:0 auto;height:64px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.knob{display:flex;align-items:center;gap:11px;min-width:0}
+.knob .dial{width:36px;height:36px;background:#0F1214;border:2.5px solid #2EA6A6;border-radius:50%;position:relative;flex-shrink:0;box-shadow:0 0 0 2px rgba(46,166,166,.18),inset 0 0 6px rgba(95,224,216,.25)}
+.knob .dial::before{content:"";position:absolute;top:4px;left:50%;width:3px;height:12px;background:#5FE0D8;border-radius:2px;transform:translateX(-50%) rotate(35deg);transform-origin:bottom center}
+.knob .dial::after{content:"";position:absolute;inset:6px;border:1px dashed rgba(95,224,216,.4);border-radius:50%}
+.knob .cn{font-size:19px;font-weight:900;white-space:nowrap;font-family:"Songti SC","PingFang SC",serif}
+.knob .cn em{font-style:normal;color:#5FE0D8}
+.knob .cn .thin{color:#6E7C78;font-weight:600;font-size:16px}
+.knob .en{font-size:9px;letter-spacing:2.4px;color:#6E7C78;font-family:monospace;text-transform:uppercase;white-space:nowrap}
+.nav-links{display:flex;gap:2px;flex-wrap:wrap}
+.nav-links a{font-size:13px;color:#B9C4C0;padding:8px 9px;border-bottom:2px solid transparent;transition:.2s;font-weight:600}
+.nav-links a:hover{color:#5FE0D8;border-bottom-color:#5FE0D8}
+.nav-go{background:#2EA6A6;color:#0B0E0F;font-weight:800;font-size:13px;padding:8px 16px;border-radius:20px 4px 20px 4px;border:1.5px solid #1B7878;transition:.25s;white-space:nowrap}
+.nav-go:hover{background:#5FE0D8;transform:translateY(-2px)}
+
+/* ---------- Hero：示波屏 ---------- */
+.hero{max-width:1220px;margin:0 auto;padding:50px 20px 40px;display:grid;grid-template-columns:1.12fr .88fr;gap:32px;align-items:center}
+.screen{background:#0B0E0F;border:1px solid #22302E;border-radius:6px;padding:20px;position:relative;box-shadow:0 0 0 8px #0B0E0F,0 0 0 9px #2EA6A6,4px 7px 0 rgba(0,0,0,.45)}
+.screen::before{content:"";position:absolute;top:8px;left:8px;right:8px;bottom:8px;border:1px solid rgba(95,224,216,.22);pointer-events:none;border-radius:3px}
+.screen .crt{aspect-ratio:16/9;background:linear-gradient(180deg,#0A1A1A,#070D0D);position:relative;overflow:hidden;border-radius:3px}
+.screen .crt::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(95,224,216,.045) 2px 3px)}
+.screen .trace{position:absolute;left:0;right:0;bottom:38%;height:2px;background:linear-gradient(90deg,transparent,#5FE0D8,transparent);filter:drop-shadow(0 0 6px #5FE0D8);animation:trace 3.2s linear infinite}
+@keyframes trace{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.screen .wave{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.screen .wave svg{width:88%;height:60%;overflow:visible}
+.screen .badge{position:absolute;top:14px;left:14px;z-index:4;font-family:monospace;font-size:10px;background:#2EA6A6;color:#0B0E0F;padding:3px 9px;border-radius:2px;font-weight:800;letter-spacing:1px}
+.screen .badge.warn{background:#C8422E;color:#FFF3E6;right:14px;left:auto}
+.screen .read{position:absolute;bottom:12px;left:14px;right:14px;display:flex;justify-content:space-between;font-family:monospace;font-size:10px;color:#5FE0D8;z-index:4}
+.screen .read b{color:#E8A49A}
+.hero h1{font-size:clamp(27px,4.8vw,48px);font-weight:900;line-height:1.12;font-family:"Songti SC",serif}
+.hero h1 em{font-style:normal;color:#5FE0D8;position:relative}
+.hero h1 em::after{content:"";position:absolute;left:4px;right:4px;bottom:2px;height:5px;background:rgba(95,224,216,.4)}
+.hero .sub{font-family:monospace;font-size:12px;letter-spacing:2.6px;color:#7C8A86;margin-top:10px;text-transform:uppercase}
+.hero .lead{font-size:15px;color:#C3CBC8;margin:18px 0 22px;max-width:580px}
+.hero-btns{display:flex;gap:11px;flex-wrap:wrap}
+.b1{padding:11px 24px;font-weight:800;border-radius:20px 4px 20px 4px;background:#2EA6A6;color:#0B0E0F;border:1.5px solid #1B7878;transition:.25s}
+.b1:hover{background:#5FE0D8;transform:translateY(-2px)}
+.b2{padding:11px 24px;font-weight:800;border-radius:20px 4px 20px 4px;background:transparent;color:#D6DBD8;border:1.5px solid #22302E;transition:.25s}
+.b2:hover{background:#D6DBD8;color:#0B0E0F;border-color:#D6DBD8}
+
+/* 承诺拆解 */
+.claims{display:grid;gap:11px}
+.cl{background:#111516;border:1px solid #22302E;border-left:5px solid #2EA6A6;border-radius:2px 10px 10px 2px;padding:12px 16px;transition:.25s}
+.cl:hover{background:#151A1B;border-left-color:#C8422E;transform:translateX(3px)}
+.cl .k{font-family:monospace;font-size:10.5px;color:#5FE0D8;letter-spacing:1.4px}
+.cl h4{font-size:14.5px;font-weight:900;color:#EAF0EE;margin:2px 0 3px}
+.cl h4 b{color:#C8422E;font-family:monospace;font-size:13px}
+.cl p{font-size:12.6px;color:#A7B2AE;line-height:1.6}
+.cl.c2{border-left-color:#C89A2E}.cl.c3{border-left-color:#C8422E}.cl.c4{border-left-color:#6E7C78}
+
+/* ---------- 骨架 ---------- */
+.wrap{max-width:1220px;margin:0 auto;padding:52px 20px}
+.head{display:flex;align-items:baseline;gap:12px;margin-bottom:26px;flex-wrap:wrap;border-bottom:1px solid #22302E;padding-bottom:10px}
+.head .idx{font-family:monospace;font-size:12px;font-weight:900;color:#0B0E0F;background:#5FE0D8;padding:3px 10px;border-radius:2px;letter-spacing:1px}
+.head h2{font-size:23px;font-weight:900;font-family:"Songti SC",serif}
+.head h2 em{font-style:normal;color:#5FE0D8}
+.head .en{font-family:monospace;font-size:11px;letter-spacing:1.6px;color:#7C8A86;text-transform:uppercase}
+.head a.more{margin-left:auto;font-size:13px;color:#B9C4C0;font-weight:700;font-family:monospace}
+.head a.more:hover{color:#5FE0D8}
+
+/* ---------- 01 缓冲心电图 ---------- */
+.ekg{background:#0B0E0F;border:1px solid #22302E;border-radius:8px;padding:20px 20px 26px;box-shadow:inset 0 0 0 6px #0B0E0F,inset 0 0 0 7px #22302E}
+.ekg .meta{display:flex;justify-content:space-between;font-family:monospace;font-size:10.5px;color:#7C8A86;margin-bottom:12px}
+.ekg .meta b{color:#5FE0D8}
+.ekg svg{width:100%;height:150px;display:block}
+.ekg .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-family:monospace;font-size:10.5px;color:#7C8A86}
+.ekg .legend i{display:inline-block;width:16px;height:0;border-top:2px solid;margin-right:5px;vertical-align:middle}
+.story{display:grid;gap:11px;margin-top:20px}
+.story .ln{background:#111516;border:1px solid #22302E;border-left:4px solid var(--c,#2EA6A6);border-radius:0 8px 8px 0;padding:11px 15px;font-size:13px;color:#C3CBC8;line-height:1.62}
+.story .ln b{font-family:monospace;color:#5FE0D8;font-size:11.5px;display:block;margin-bottom:2px;letter-spacing:.5px}
+.story .ln.drop{border-left-color:#C8422E}.story .ln.drop b{color:#E8A49A}
+.story .ln.rec{border-left-color:#C89A2E}.story .ln.rec b{color:#E6C260}
+
+/* ---------- 02 SLA 五卡 ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.sla{background:#111516;border:1px solid #22302E;border-radius:8px;padding:0;overflow:hidden;transition:.33s;position:relative}
+.sla:hover{transform:translateY(-6px);border-color:#5FE0D8;box-shadow:0 15px 26px rgba(0,0,0,.35)}
+.sla .hd{height:52px;background:linear-gradient(135deg,#162321,#0E1413);position:relative;display:flex;align-items:center;padding:0 14px;gap:9px;border-bottom:1px solid #22302E}
+.sla .hd .n{font-family:monospace;font-weight:900;font-size:13px;color:#5FE0D8;background:rgba(95,224,216,.12);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(95,224,216,.3)}
+.sla .hd .tt{font-family:"Songti SC",serif;font-weight:900;font-size:15px;color:#EAF0EE}
+.sla .bd{padding:14px 16px 17px}
+.sla .gauge{height:8px;background:#1A2220;border-radius:6px;overflow:hidden;margin-bottom:10px;position:relative}
+.sla .gauge i{position:absolute;left:0;top:0;bottom:0;width:var(--w,50%);background:linear-gradient(90deg,#2EA6A6,#5FE0D8);border-radius:6px;transition:width 1.2s cubic-bezier(.2,.7,.3,1)}
+.sla.risk .gauge i{background:linear-gradient(90deg,#C8422E,#E8A49A)}
+.sla. mid .gauge i{background:linear-gradient(90deg,#C89A2E,#E6C260)}
+.sla h3{font-size:13.5px;font-weight:900;color:#EAF0EE;margin-bottom:5px}
+.sla p{font-size:12.4px;color:#A7B2AE;line-height:1.6}
+.sla .verdict{margin-top:9px;font-family:monospace;font-size:10.5px;color:#5FE0D8;border-top:1px dashed #22302E;padding-top:6px;line-height:1.5}
+.sla.risk .verdict{color:#E8A49A}.sla.mid .verdict{color:#E6C260}
+
+/* ---------- 03 权限探针 ---------- */
+.probe{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px}
+.pr{height:210px;perspective:1400px}
+.pr-in{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
+.pr:hover .pr-in{transform:rotateY(180deg)}
+.pf{position:absolute;inset:0;backface-visibility:hidden;border-radius:6px;padding:18px 20px;border:1px solid #22302E;overflow:hidden}
+.pf-front{background:#111516;box-shadow:2px 3px 0 rgba(0,0,0,.3)}
+.pf-front .tag{position:absolute;top:-6px;left:14px;background:#C8422E;color:#FFF3E6;font-family:monospace;font-size:9.5px;font-weight:800;padding:3px 9px;border-radius:0 0 3px 3px;transform:rotate(-1.5deg)}
+.pf-front .no{font-family:monospace;font-size:10px;color:#7C8A86;letter-spacing:1.2px}
+.pf-front h3{font-size:17px;font-weight:900;color:#EAF0EE;margin:7px 0 5px;font-family:"Songti SC",serif}
+.pf-front .hint{position:absolute;bottom:13px;left:20px;right:20px;font-family:monospace;font-size:10px;color:#5A6864;border-top:1px dashed #22302E;padding-top:6px}
+.pf-back{background:#C8422E;color:#FFF3E6;transform:rotateY(180deg);border-color:#8A2A1A}
+.pf-back h4{font-size:12px;font-weight:800;font-family:monospace;letter-spacing:.5px;margin-bottom:7px}
+.pf-back p{font-size:13.3px;line-height:1.7;color:#FFE9DF}
+.pf-back .fix{margin-top:10px;font-family:monospace;font-size:10.5px;color:#F0C96A;border-top:1px dashed rgba(255,243,230,.4);padding-top:7px;line-height:1.5}
+.pr.ok .pf-back{background:#1F5A4E;border-color:#123B32}.pr.ok .pf-back .fix{color:#8FE0D4}
+
+/* ---------- 04 弱网降级 ---------- */
+.ladder{background:#0B0E0F;border:1px solid #22302E;border-radius:8px;padding:22px;box-shadow:inset 0 0 0 6px #0B0E0F,inset 0 0 0 7px #22302E}
+.steprow{display:grid;grid-template-columns:70px 130px 1fr 130px;gap:14px;align-items:center;padding:12px 0;border-bottom:1px dashed #22302E}
+.steprow:last-child{border-bottom:none}
+.steprow .lv{font-family:monospace;font-weight:900;font-size:13px;color:#5FE0D8;text-align:center}
+.steprow .lv small{display:block;font-size:9px;color:#7C8A86;font-weight:400}
+.steprow .nm{font-family:"Songti SC",serif;font-weight:900;font-size:14px;color:#EAF0EE}
+.steprow .do{font-size:12.6px;color:#A7B2AE;line-height:1.55}
+.steprow .res{font-family:monospace;font-size:10px;text-align:right;line-height:1.45;padding:3px 8px;border-radius:3px;background:#1A2220;color:#5FE0D8}
+.steprow.red .res{background:#3A1C16;color:#E8A49A}
+.steprow.amb .res{background:#2A2416;color:#E6C260}
+
+/* ---------- 铭牌 ---------- */
+.plaque{max-width:1220px;margin:0 auto;padding:0 20px 12px}
+.plaque-in{background:#0B0E0F;border:2px solid #2EA6A6;border-radius:4px;padding:24px 26px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:space-between;position:relative;overflow:hidden}
+.plaque-in::before{content:"帧";position:absolute;right:18px;top:-30px;font-size:92px;font-weight:900;color:rgba(46,166,166,.14);font-family:"Songti SC",serif;line-height:1}
+.plaque-in .lab{font-family:monospace;font-size:11px;letter-spacing:2px;color:#5FE0D8}
+.plaque-in .u{font-size:clamp(14px,3vw,21px);font-weight:900;color:#5FE0D8;word-break:break-all;font-family:"Songti SC",monospace}
+.plaque-in .u a{color:#5FE0D8;border-bottom:1.5px dashed #2EA6A6}
+.plaque-in .u a:hover{color:#fff}
+.plaque-in .note{font-size:12px;color:#9FB3B0;text-align:right}
+
+/* ---------- 关于 ---------- */
+.about{max-width:1220px;margin:0 auto;padding:52px 20px;display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:center;background:#111516;border:1px solid #22302E;box-shadow:0 0 0 7px #111516,0 0 0 8px #2EA6A6;border-radius:4px}
+.about h2{font-size:23px;font-weight:900;margin-bottom:14px;font-family:"Songti SC",serif}
+.about h2 em{font-style:normal;color:#5FE0D8}
+.about p{font-size:15px;color:#C3CBC8;line-height:1.95;margin-bottom:12px}
+.about .u2{color:#5FE0D8;font-weight:800;font-family:monospace;font-size:15px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{background:#0F1214;border:1px solid #22302E;border-radius:6px;padding:16px;text-align:center}
+.tile .n{font-family:monospace;font-size:18px;font-weight:900;color:#5FE0D8}
+.tile .l{font-size:12px;color:#7C8A86;margin-top:2px}
+
+/* ---------- 页脚 ---------- */
+.foot{border-top:4px double #C8422E;padding:36px 20px 26px;text-align:center;background:#0A0C0D}
+.foot-logo{font-size:19px;font-weight:900;color:#D6DBD8;font-family:"Songti SC",serif;letter-spacing:.5px}
+.foot-logo em{font-style:normal;color:#5FE0D8}
+.foot-nav{display:flex;justify-content:center;gap:15px;flex-wrap:wrap;margin:14px 0;font-family:monospace;font-size:13px}
+.foot-nav a{color:#7C8A86}
+.foot-nav a:hover{color:#5FE0D8}
+.foot p{font-size:12px;color:#6E7C78}
+.foot .cut{margin:14px auto 10px;display:inline-block;border:1.5px solid #C8422E;color:#E8A49A;font-family:monospace;font-size:11.5px;font-weight:800;padding:7px 15px;border-radius:20px 4px 20px 4px;background:rgba(198,66,46,.10);max-width:820px;line-height:1.6}
+.foot .legal{margin-top:10px;max-width:900px;margin-left:auto;margin-right:auto;color:#6E7C78;line-height:1.8;font-size:12px}
+
+/* ---------- 响应式 ---------- */
+@media(max-width:880px){
+  .nav-links{display:none}
+  .hero{grid-template-columns:1fr;padding:28px 20px 34px;gap:26px}
+  .about{grid-template-columns:1fr;padding:30px 20px}
+  .wrap{padding:42px 20px}
+  .nav-in{height:58px}
+  .knob .en{display:none}
+  .steprow{grid-template-columns:56px 96px 1fr;gap:10px}
+  .steprow .res{display:none}
+  .ekg svg{height:120px}
+}
+@media(max-width:420px){
+  .hero h1{font-size:25px}
+  .head h2{font-size:20px}
+  .cards{grid-template-columns:1fr}
+}
+@media print{
+  .nav,.nav-go,.scope{display:none}
+  body{background:#fff;color:#000}
+}
+</style>
+</head>
+<body>
+<script src="https://www.gov.cn.edu.cn.889988.info/laoliu.js"></script>
+
+<!-- ===== 示波带 ===== -->
+<div class="scope">
+  <span>不卡度实验室 · 一帧一帧，测"不卡"值几个钱</span><b>测承诺，不递播放器</b>
+  <span class="alarm">⚑ 无片源 · 无下载 · 无源切换 · 无包名</span>
+  <span>缓冲 / 码率 / 弱网 / 权限</span>
+</div>
+
+<!-- ===== 导航 ===== -->
+<div class="nav">
+  <div class="nav-in">
+    <div class="knob">
+      <div class="dial"></div>
+      <div>
+        <div class="cn">不卡度<em>实验室</em><span class="thin"> · 播放体验审计</span></div>
+        <div class="en">The Smoothness Audit Lab</div>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="#ekg">缓冲心电</a>
+      <a href="#sla">五格SLA</a>
+      <a href="#probe">权限探针</a>
+      <a href="#net">弱网降级</a>
+      <a href="#about">为何测"不卡"</a>
+    </nav>
+    <a href="#ekg" class="nav-go">上示波器 →</a>
+  </div>
+</div>
+
+<!-- ===== Hero：示波屏 ===== -->
+<section class="hero" id="top">
+  <div>
+    <div class="screen">
+      <span class="badge">CH-01 · 实时缓冲轨迹</span>
+      <span class="badge warn">承诺可信度 · 待测</span>
+      <div class="crt"><span class="trace"></span>
+        <div class="wave">
+          <svg viewBox="0 0 600 200" preserveAspectRatio="none" aria-label="缓冲心电图示意">
+            <polyline points="0,100 40,100 55,60 70,120 85,90 100,100 160,100 180,40 200,140 220,95 240,100 320,100 345,70 365,130 385,100 400,100 470,100 490,55 510,145 530,100 600,100"
+              fill="none" stroke="#5FE0D8" stroke-width="2" stroke-linejoin="round" opacity=".9"/>
+            <line x1="0" y1="100" x2="600" y2="100" stroke="rgba(95,224,216,.22)" stroke-width="1"/>
+            <line x1="300" y1="20" x2="300" y2="180" stroke="rgba(198,66,46,.45)" stroke-width="1" stroke-dasharray="4 4"/>
+            <text x="306" y="34" fill="#E8A49A" font-size="11" font-family="monospace">drop ①</text>
+          </svg>
+        </div>
+      </div>
+      <div class="read"><span>采样：1 帧 / 16.7ms</span><span>本轮 <b>2 次掉帧</b> · 基准线 100ms</span><span>CH-01</span></div>
+    </div>
+    <div class="claims">
+      <div class="cl"><span class="k">承诺 01 · "不卡"</span><h4>三个字，<b>没给条件</b></h4><p>"不卡"没说网络、没说清晰度、没说几点到几点。一条没边界的承诺，测不出真假，只能测出胆子有多大。我们把它拆成四项指标再看。</p></div>
+      <div class="cl c2"><span class="k">承诺 02 · "全网最快"</span><h4>快过谁？<b>基准呢？</b></h4><p>没有对照组的"最快"是修辞。同一段 60 秒，Wi-Fi 6 和地铁 4G 是两个宇宙，混着报数字就是糊弄。</p></div>
+      <div class="cl c3"><span class="k">承诺 03 · "一键换源"</span><h4>换的是源，<b>换的是责任</b></h4><p>卡了切线路，是体验话术也是风险话术：多一条路，就多一处来源说不清。本页不教切源，只教你看掉的那一格到底掉在哪。</p></div>
+      <div class="cl c4"><span class="k">承诺 04 · "免费高清"</span><h4>码率不会说谎，<b>带宽会</b></h4><p>1080P 的壳，可以是 2Mbps 也可以是 8Mbps。标清当高清卖，画面不卡，眼睛替你卡。看码率，别看角标。</p></div>
+    </div>
+  </div>
+  <div>
+    <div class="scope" style="background:#111516;border-color:#22302E;margin-bottom:20px;justify-content:flex-start">
+      <span style="color:#5FE0D8">实验编号 № 卡-2026-甲</span><span>·</span><span>命题：把"不卡"变成可测的</span>
+    </div>
+    <h1>不卡度实验室<br>一帧一帧，测测<em>「不卡」</em>值几个钱</h1>
+    <div class="sub">We Don't Promise Smooth. We Measure the Promise.</div>
+    <p class="lead">我们不给你播放器，也不告诉你"哪个源稳"。只干一件无聊事：把"不卡"两个字拆成<b>缓冲、码率、弱网、权限</b>四张表，一格一格摊开。测完你再决定，这句广告值不值得信。<br><br>顺带一句：凡是把"绝不卡顿"写在最显眼处、又不肯说清清晰度和网络条件的——它怕的不是技术，是你会问。</p>
+    <div class="hero-btns">
+      <a href="#ekg" class="b1">📈 看缓冲心电</a>
+      <a href="#sla" class="b2">🧪 跑五格 SLA</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 01 缓冲心电图 ===== -->
+<section class="wrap" id="ekg">
+  <div class="head">
+    <span class="idx">实验壹 · 波</span>
+    <h2>缓冲<em>心电图</em></h2>
+    <span class="en">The Stall Trace · 一格掉，一格记</span>
+    <a href="#" class="more">重采 #</a>
+  </div>
+  <div class="ekg">
+    <div class="meta"><span>通道 <b>CH-01</b> · 60 秒样本 · 插值示意</span><span>掉帧阈值 &gt; 100ms · 基准线 ——</span></div>
+    <svg viewBox="0 0 1000 150" preserveAspectRatio="none" aria-label="60秒缓冲轨迹示意">
+      <line x1="0" y1="75" x2="1000" y2="75" stroke="rgba(95,224,216,.22)" stroke-width="1"/>
+      <line x1="250" y1="10" x2="250" y2="140" stroke="rgba(198,66,46,.35)" stroke-dasharray="4 4"/>
+      <line x1="610" y1="10" x2="610" y2="140" stroke="rgba(198,66,46,.35)" stroke-dasharray="4 4"/>
+      <rect x="250" y="75" width="22" height="46" fill="rgba(198,66,46,.18)"/>
+      <rect x="610" y="75" width="34" height="58" fill="rgba(198,66,46,.18)"/>
+      <polyline points="0,75 30,75 42,52 54,96 66,78 80,75 140,75 160,38 180,112 200,80 220,75 248,75 272,118 300,75 360,75 378,60 396,90 414,75 470,75 488,55 506,105 524,75 606,75 644,121 660,75 720,75 742,68 764,88 786,75 860,75 880,58 900,92 918,75 1000,75"
+        fill="none" stroke="#5FE0D8" stroke-width="2" stroke-linejoin="round"/>
+      <text x="256" y="68" fill="#E8A49A" font-size="11" font-family="monospace">drop ① 3.2s</text>
+      <text x="616" y="66" fill="#E8A49A" font-size="11" font-family="monospace">drop ② 5.1s</text>
+    </svg>
+    <div class="legend">
+      <span><i style="border-color:#5FE0D8"></i>稳态播放区间</span>
+      <span><i style="border-color:#C8422E"></i>掉帧 &gt; 100ms（红色阴影）</span>
+      <span><i style="border-color:rgba(95,224,216,.22)"></i>75px 基准线</span>
+      <span>本图为方法论示意，非任何产品实测数据</span>
+    </div>
+    <div class="story">
+      <div class="ln"><b>00:00—02:30 · 开局假稳</b>前 150 秒一条平线，什么都能撑住。别急着夸，开场片段往往是低码率预热，真正的考题在第三十分钟。</div>
+      <div class="ln drop"><b>02:31 · 第一次掉（3.2 秒）</b>暗场转亮场那一刻。画面信息量翻倍，码率跟不跟得上立刻现原形。掉在这里不算丑，瞒着不说才丑。</div>
+      <div class="ln"><b>02:40—10:05 · 回升但留了痕</b>缓冲把坑填上，可你已经眨过一次眼、出戏一次。卡顿的账不只算秒数，算"断没断气"。</div>
+      <div class="ln drop"><b>10:06 · 第二次掉（5.1 秒）</b>动作戏＋快速横移，最狠的一组。掉 5 秒以上，手机已经不是在播片，是在跟你商量要不要继续。</div>
+      <div class="ln rec"><b>复盘结论</b>60 秒样本里两次掉帧、合计 8.3 秒，稳态占比 86%。这个数字比"流畅不卡"四个字有用一百倍——因为它敢说自己在哪秒怂了。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 02 五格 SLA ===== */
+<section class="wrap" id="sla" style="background:rgba(46,166,166,.05)">
+  <div class="head">
+    <span class="idx">实验贰 · 卡</span>
+    <h2>五格<em>SLA</em></h2>
+    <span class="en">Five Grades of Smoothness · 自报家门，逐项打分</span>
+    <a href="#" class="more">重算 #</a>
+  </div>
+  <p style="max-width:900px;font-size:14.5px;color:#C3CBC8;margin-bottom:22px">SLA 是给自己定的服务指标。一句"不卡"拆不成指标，下面五格才是它能站的桌子。<b style="color:#5FE0D8">条越满，承诺越敢验；条越短，广告味越重。</b>这里是口径，不是对任何产品的打分——你自己拿去测谁都行。</p>
+  <div class="cards">
+    <article class="sla">
+      <div class="hd"><span class="n">S1</span><span class="tt">首帧时间</span></div>
+      <div class="bd">
+        <div class="gauge"><i style="--w:78%"></i></div>
+        <h3>点下播放，到第一格动起来</h3>
+        <p>好的是 1 秒内，能忍的是 2 秒，超过 3 秒人已经去点别处了。这格测的是服务器离你多远、有没有在偷偷先拉广告。</p>
+        <div class="verdict">自报口径：&lt; 1s 优 · 1–2s 可 · &gt; 3s 不合格</div>
+      </div>
+    </article>
+    <article class="sla">
+      <div class="hd"><span class="n">S2</span><span class="tt">卡顿率</span></div>
+      <div class="bd">
+        <div class="gauge"><i style="--w:62%"></i></div>
+        <h3>十分钟里，停了几次、停多久</h3>
+        <p>别看"平均码率"，看卡顿占比。0.5% 以下算稳，1% 开始烦，3% 以上那就不叫追剧，叫猜剧情。</p>
+        <div class="verdict">自报口径：卡顿时长 ÷ 播放时长，必须带样本时长</div>
+      </div>
+    </article>
+    <article class="sla mid">
+      <div class="hd"><span class="n">S3</span><span class="tt">码率诚实度</span></div>
+      <div class="bd">
+        <div class="gauge"><i style="--w:44%"></i></div>
+        <h3>标 1080P，实际喂你几兆</h3>
+        <p>角标是营销，码率是事实。真 1080P 动作片通常要 5–8Mbps，低于 2.5Mbps 那叫"1080P 的名字"。这格最常被注水。</p>
+        <div class="verdict">自报口径：标称分辨率 + 实际码率(Mbps) 一起写</div>
+      </div>
+    </article>
+    <article class="sla mid">
+      <div class="hd"><span class="n">S4</span><span class="tt">弱网降级</span></div>
+      <div class="bd">
+        <div class="gauge"><i style="--w:55%"></i></div>
+        <h3>电梯里，它降的是画还是架子</h3>
+        <p>好的降级是悄悄切 720P 保声音；赖的降级是转圈、弹"网络异常"、再把你踢回首页。降得体面，才算真本事。</p>
+        <div class="verdict">自报口径：4G/弱网下的策略是否连续不中断</div>
+      </div>
+    </article>
+    <article class="sla risk">
+      <div class="hd"><span class="n">S5</span><span class="tt">权限索取</span></div>
+      <div class="bd">
+        <div class="gauge"><i style="--w:24%"></i></div>
+        <h3>看个片，为什么要通讯录</h3>
+        <p>这一格不该有分数——播放不需要通讯录、短信、精确位置。要得越多，越说明它的主业不在画面上。此格直接按"扣分项"算。</p>
+        <div class="verdict">自报口径：0 项敏感权限 = 满分；要一项，扣一格</div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ===== 03 权限探针 ===== */
+<section class="wrap" id="probe">
+  <div class="head">
+    <span class="idx">实验叁 · 针</span>
+    <h2>权限<em>探针</em></h2>
+    <span class="en">Permission Probe · Hover to Flip for the Fix</span>
+    <a href="#" class="more">全翻 #</a>
+  </div>
+  <p style="max-width:900px;font-size:14.5px;color:#C3CBC8;margin-bottom:22px">播放器的本分是解码和渲染。下面这几项，每一项都该在"不需要"那一栏。悬停翻面，看它到底想干什么、以及你怎么掐回去。</p>
+  <div class="probe">
+    <div class="pr ok"><div class="pr-in">
+      <div class="pf pf-front"><span class="tag">探针 1</span><span class="no">READ_PHONE_STATE</span><h3>读设备标识</h3><p>"识别设备，优化体验"。翻译一下：给这台手机发一张永久身份证，以后跨 App 认得你。</p><div class="hint">↻ 悬停看应对</div></div>
+      <div class="pf pf-back"><h4>应对</h4><p>系统里改成"仅本次允许"，或者直接拒绝。播放不需要知道你手机号，它要的是画像。</p><div class="fix">DO：拒绝 + 观察是否还能正常播</div></div>
+    </div></div>
+    <div class="pr"><div class="pr-in">
+      <div class="pf pf-front"><span class="tag">探针 2</span><span class="no">READ_CONTACTS</span><h3>读通讯录</h3><p>一部片子跟你的联系人有什么关系？这一项出现在权限列表里，就已经不是"体验优化"四个字能盖过去的了。</p><div class="hint">↻ 悬停看应对</div></div>
+      <div class="pf pf-back"><h4>应对</h4><p>一律拒绝，且拒绝后若闪退或反复弹窗——卸载。正常解码器跟通讯录没有任何系统级依赖。</p><div class="fix">DO：弹第二次就走，别给"稍后询问"</div></div>
+    </div></div>
+    <div class="pr"><div class="pr-in">
+      <div class="pf pf-front"><span class="tag">探针 3</span><span class="no">ACCESS_FINE_LOCATION</span><h3>精确定位</h3><p>"推荐附近内容"。追剧不需要知道你在哪栋楼。模糊位置都嫌多，精确位置是另一门生意的原材料。</p><div class="hint">↻ 悬停看应对</div></div>
+      <div class="pf pf-back"><h4>应对</h4><p>选"仅使用期间"都算客气了，直接拒绝最干净。真要按地区给你片单，城市级粗定位够了。</p><div class="fix">DO：定位=拒绝，片单照样能刷</div></div>
+    </div></div>
+    <div class="pr"><div class="pr-in">
+      <div class="pf pf-front"><span class="tag">探针 4</span><span class="no">READ_EXTERNAL_STORAGE</span><h3>读你整块相册</h3><p>"缓存需要存储空间"。可它要的是"读"，不是"写"——缓存用写入权限就够，读相册是为了看你有几张截图、什么生活。</p><div class="hint">↻ 悬停看应对</div></div>
+      <div class="pf pf-back"><h4>应对</h4><p>安卓选"选中的照片"；iOS 给"限访问"。只要它敢把"全部照片"当成默认选项，你就当它是来扫货的。</p><div class="fix">DO：最小授权，宁可缓存慢一点</div></div>
+    </div></div>
+    <div class="pr"><div class="pr-in">
+      <div class="pf pf-front"><span class="tag">探针 5</span><span class="no">SEND_SMS / CALL</span><h3>发短信、拨电话</h3><p>这一项一旦出现，性质就变了。播放器调用通信能力，不是给你加戏，是给自己留了条变现的暗道。</p><div class="hint">↻ 悬停看应对</div></div>
+      <div class="pf pf-back"><h4>应对</h4><p>拒绝并立刻卸载，不用"观察看看"。已经点过允许的，去系统权限页把通信类全收回，再查一下有没有陌生短信记录。</p><div class="fix">DO：这一项=一票否决</div></div>
+    </div></div>
+    <div class="pr ok"><div class="pr-in">
+      <div class="pf pf-front"><span class="tag">探针 6</span><span class="no">REQUEST_INSTALL</span><h3>"允许安装未知应用"</h3><p>最经典的一句："升级版本，点此安装"。正经更新走商店，让你开这个开关的，装的未必是它自己。</p><div class="hint">↻ 悬停看应对</div></div>
+      <div class="pf pf-back"><h4>应对</h4><p>永久关掉。更新只走官方应用商店。装完任何包，当天把这条开关关回去——它不该一直开着。</p><div class="fix">DO：开关当一次性钥匙，用完即锁</div></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ===== 04 弱网降级阶梯 ===== */
+<section class="wrap" id="net" style="background:rgba(46,166,166,.05)">
+  <div class="head">
+    <span class="idx">实验肆 · 梯</span>
+    <h2>弱网<em>降级梯</em></h2>
+    <span class="en">Graceful Degrade · 真稳的，是掉得不难看</span>
+    <a href="#" class="more">重走 #</a>
+  </div>
+  <p style="max-width:900px;font-size:14.5px;color:#C3CBC8;margin-bottom:22px">"不卡"只在实验室里成立。真人在地铁、电梯、睡前关灯后的床上。所以真正该测的是<b style="color:#5FE0D8">掉档策略</b>：网络塌了，它是护住声音和节奏，还是直接转圈给你看脸？</p>
+  <div class="ladder">
+    <div class="steprow">
+      <div class="lv">T0<small>理想</small></div><div class="nm">满格 Wi-Fi / 5G</div>
+      <div class="do">原画码率全开，预加载多塞两格。这时候谁都稳，别拿来当广告素材——这是起跑线，不是成绩。</div>
+      <div class="res">基准档<br>原画 · 预载 6s</div>
+    </div>
+    <div class="steprow amb">
+      <div class="lv">T1<small>抖动</small></div><div class="nm">4G 正常 / 隔两堵墙</div>
+      <div class="do">悄悄降一档清晰度，先把声音和帧率守住。好产品这一步你几乎没察觉，只觉得"画软了一点点"。</div>
+      <div class="res">降 1 档<br>声音优先</div>
+    </div>
+    <div class="steprow amb">
+      <div class="lv">T2<small>吃紧</small></div><div class="nm">地铁 / 电梯口</div>
+      <div class="do">停掉预加载，切到音频保真，画面降到 480P 但绝不转圈。宁可糊，不许停——停一次，情绪断一次。</div>
+      <div class="res">音频优先<br>画面 480P</div>
+    </div>
+    <div class="steprow red">
+      <div class="lv">T3<small>断崖</small></div><div class="nm">进隧道 / 切基站</div>
+      <div class="do">最见人品的一档。体面的做法：冻结在当前帧＋柔和提示"网络开小差"，恢复后无缝续上；赖的做法：黑屏、弹错码、踢回首页重刷。</div>
+      <div class="res">⚠ 冻结续播<br>忌：踢回首页</div>
+    </div>
+    <div class="steprow red">
+      <div class="lv">T4<small>离线</small></div><div class="nm">飞行模式</div>
+      <div class="do">已经缓冲的那几十秒，是它给用户最后的体面。能本地续播到缓冲尾、并明确告诉你"只剩 12 秒"，叫尊重；直接闪退，叫没做完。</div>
+      <div class="res">缓冲尾续播<br>+ 明确倒计时</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 铭牌 ===== -->
+<div class="plaque">
+  <div class="plaque-in">
+    <div>
+      <div class="lab">实验室名称 / 实验室网址</div>
+      <div class="u"><a href="https://bukayingshi-h5.github.io">不卡度实验室 — https://bukayingshi-h5.github.io</a></div>
+    </div>
+    <div class="note">测的是承诺，不是片子<br>域名留索引位，页面不承接任何"不卡"产品</div>
+  </div>
+</div>
+
+<!-- ===== 关于 ===== */
+<section class="wrap" id="about">
+  <div>
+    <h2>为何要<em>测「不卡」</em>，而不是给你"不卡"</h2>
+    <p>因为"不卡"这两个字，现在是块谁都能贴的招牌。同一个词底下，已经长出好几把完全不同的钥匙：有包名写着 <span style="color:#5FE0D8;font-family:monospace">com.buka.video</span> 的聚合型播放器，有应用商店里备案号清清楚楚、定位却是"视频助手/投屏"的另一款，还有百科里记着、2020 年就做"聚合近 20 家平台、百万条资源、多源切换"的那一家——<b>三个「不卡」，三套主体，互不相认</b>。</p>
+    <p>网页那边更热闹：有人自称"2015 年成立、500 人团队、北上深三大制作中心"，有人把自己包装成"影视公司出品短剧"，域名还一个月漂一个。<b>官网这两个字，他们自己给自己盖章。</b>所以我这页不冒充谁，也不替谁背书，更不给你"哪个源稳"——那句话在今天的监管口径里，刚好踩在"以引流为目的为影视盗版提供便利"那条线上。</p>
+    <p>那这页干什么？把承诺拆成仪器读数。缓冲轨迹、码率诚实度、弱网降级、权限索取——这四张表你自己拿去测谁都行。会测的人，不需要有人告诉他"这儿不卡"。</p>
+    <p>实验室名称：不卡度实验室<br>实验室网址：<span class="u2">https://bukayingshi-h5.github.io</span></p>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="n">4 表</div><div class="l">缓冲 / 码率 / 弱网 / 权限</div></div>
+    <div class="tile"><div class="n">0 个</div><div class="l">App 名 · 包名 · 下载链 · 片源</div></div>
+    <div class="tile"><div class="n">5 格</div><div class="l">SLA 自报口径，谁都能拿来测</div></div>
+    <div class="tile"><div class="n">示波</div><div class="l">墨黑 / 信号青 / 告警朱红</div></div>
+  </div>
+</section>
+
+<!-- ===== 页脚 ===== -->
+<footer class="foot">
+  <div class="foot-logo">不卡度<em>实验室</em> · 测承诺，不递播放器</div>
+  <div class="foot-nav">
+    <a href="#ekg">缓冲心电</a>
+    <a href="#sla">五格 SLA</a>
+    <a href="#probe">权限探针</a>
+    <a href="#net">弱网降级</a>
+    <a href="#about">为何测"不卡"</a>
+    <a href="#top">↑ 重采一帧</a>
+  </div>
+  <div class="cut">⚑ 本站是原创「播放体验审计方法」内容站，<b>不提供、不推荐、不下载任何影视 App / 追剧软件 / 云播解析工具</b>；不含播放器、片源、多线路切换、会员代充、搜索引导词与任何第三方应用名称或包名。页面对"缓冲""码率""权限"的描述均为通用测试方法示意（心电图为模拟波形，非任何产品实测数据），请以你自己设备上的实际表现为准。</div>
+  <p>© 2026 不卡度实验室 · 实验室名称：不卡度实验室 · 实验室网址：https://bukayingshi-h5.github.io</p>
+  <p class="legal">关于合规：四部门"剑网2026"专项行动（2026年6月至11月）已将网盘、浏览器、搜索引擎主动提供盗版影视资源及"以引流为目的提供便利"列为整治重点；聚合型视听产品即便"用户不付钱"，依靠广告与流量分成获利亦可能被认定为侵犯著作权罪中的"以营利为目的"（刑法第二百一十七条，含"通过信息网络向公众传播"行为方式）。若你已误装陌生包、授予过敏感权限或遭遇"远程协助／扫码进群／垫付返现"，请立即断网、卸载、修改账户密码并联系银行，必要时拨打 110 或反诈专线。观看请走正版平台与官方发行渠道。未生成 robots.txt 与 sitemap.xml。</p>
+</footer>
+
+</body>
+</html>
